@@ -49,3 +49,51 @@ python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 --width 1920 --height 
 | `--slides-pct` | `0.72` | Fraction of slides width to keep (crops right side) |
 | `--width` | `1920` | Output video width in pixels |
 | `--height` | `1080` | Output video height in pixels |
+
+---
+
+### `add_intro.py` — Video Intro Prepender
+
+Prepends a branded intro sequence (community logo, sponsor logo, optional music) to any video, with smooth fade transitions.
+
+**What it does:**
+
+- Generates logo screens (white background, centered logo) for community and/or sponsor
+- Concatenates them into an intro sequence with optional background music
+- Joins the intro to the main video with a configurable fade transition
+- Preserves the input video resolution by default
+
+**Requirements:**
+
+```bash
+brew install ffmpeg
+```
+
+**Usage:**
+
+```bash
+# Community + sponsor logos with music
+python3 add_intro.py input.mp4 output.mp4 \
+    --intro-community logo_ruby.png \
+    --intro-sponsor   logo_sponsor.png \
+    --intro-music     music.mp3
+
+# Community logo only, custom durations
+python3 add_intro.py input.mp4 output.mp4 \
+    --intro-community logo_ruby.png \
+    --intro-community-duration 3 \
+    --transition 0.5
+```
+
+**Options:**
+
+| Option | Default | Description |
+|---|---|---|
+| `--intro-community` | — | Path to community logo PNG |
+| `--intro-sponsor` | — | Path to sponsor logo PNG |
+| `--intro-music` | — | Path to intro music MP3 |
+| `--intro-community-duration` | `2` | Seconds to show the community screen |
+| `--intro-sponsor-duration` | `2` | Seconds to show the sponsor screen |
+| `--transition` | `1` | Fade duration at the join (seconds) |
+| `--width` | from input | Output video width in pixels |
+| `--height` | from input | Output video height in pixels |
