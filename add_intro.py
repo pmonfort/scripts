@@ -51,7 +51,7 @@ def dimensions(path):
          "-show_entries", "stream=width,height", "-of", "csv=p=0", str(path)],
         capture_output=True, text=True,
     )
-    w, h = r.stdout.strip().split(",")
+    w, h = [v for v in r.stdout.strip().splitlines()[0].split(",") if v]
     return int(w), int(h)
 
 
