@@ -8,15 +8,18 @@ A collection of standalone utility scripts for various tasks.
 
 ### `video_merger.py` — Conference Video Merger
 
-Merges two conference recordings — slides and speaker — into a single synchronized side-by-side video.
+Merges two conference recordings — slides and speaker — into a single synchronized side-by-side video, with optional background image and intro sequence.
 
 **What it does:**
 
 - Places slides (75%) and speaker (25%) side by side in a 1920x1080 output
-- Crops the slides video to remove any participant column on the right
+- Trims the slides width to exclude participant thumbnails on the right (`--slides-pct`)
 - Auto-syncs slides to the speaker using audio cross-correlation (trims sponsor intros automatically)
 - Uses the speaker video as the master timeline — output starts and ends with the speaker
 - Freezes the last slide frame if slides end before the speaker finishes
+- Optionally overlays both panels on a background image with a visible margin border
+- Optionally auto-detects and removes black borders from the slides (`--slides-autocrop`)
+- Optionally prepends a branded intro sequence (community/sponsor logos + music)
 
 **Requirements:**
 
@@ -34,11 +37,18 @@ python3 video_merger.py slides.mp4 speaker.mp4 output.mp4
 # Manual offset (seconds to skip from slides start)
 python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 --offset 312
 
-# Custom slides width percentage (default: 0.72)
-python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 --slides-pct 0.74
+# Background image + auto-crop black borders
+python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 \
+    --background background.jpg \
+    --slides-autocrop
 
-# Custom output resolution
-python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 --width 1920 --height 1080
+# Full example with intro sequence
+python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 \
+    --background background.jpg \
+    --slides-autocrop \
+    --intro-community logo_ruby.png \
+    --intro-sponsor   logo_sponsor.png \
+    --intro-music     music.mp3
 ```
 
 **Options:**
@@ -46,9 +56,20 @@ python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 --width 1920 --height 
 | Option | Default | Description |
 |---|---|---|
 | `--offset` | auto | Seconds to trim from the slides start |
-| `--slides-pct` | `0.72` | Fraction of slides width to keep (crops right side) |
+| `--slides-pct` | `0.72` | Fraction of slides width that contains slides (excludes thumbnails) |
 | `--width` | `1920` | Output video width in pixels |
 | `--height` | `1080` | Output video height in pixels |
+| `--background` | — | Background image shown behind slides and speaker panels |
+| `--slides-autocrop` | off | Auto-detect and remove black borders from slides |
+| `--slides-crop-top` | `0` | Pixels to crop from the top of slides |
+| `--slides-crop-bottom` | `0` | Pixels to crop from the bottom of slides |
+| `--slides-crop-left` | `0` | Pixels to crop from the left of slides |
+| `--slides-crop-right` | `0` | Pixels to crop from the right of slides |
+| `--intro-community` | — | Community logo PNG shown first in intro |
+| `--intro-sponsor` | — | Sponsor logo PNG shown second in intro |
+| `--intro-music` | — | Background music MP3 for the intro |
+| `--intro-community-duration` | `2` | Seconds to show the community screen |
+| `--intro-sponsor-duration` | `2` | Seconds to show the sponsor screen |
 
 ---
 
