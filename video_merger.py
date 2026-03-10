@@ -112,11 +112,15 @@ def probe_fps(path: Path) -> float:
 # ── Sync ───────────────────────────────────────────────────────────────────────
 
 def find_sync_offset(speaker_path: Path, slides_path: Path, max_search_s: int = 700) -> float:
-    """Return seconds to skip from the slides start to align audio with the speaker.
+    """Return signed seconds to adjust slides relative to the speaker.
 
-    Extracts 60 s of speech audio from the speaker and up to max_search_s + 60 s
-    from the slides, applies a 300–3400 Hz bandpass filter to isolate voice, then
-    uses FFT-based cross-correlation to find the best alignment point.
+    Positive → slides has a preamble; trim this many seconds from slides start.
+    Negative → speaker has a preamble; pad slides start with |offset| seconds of
+               frozen first frame so both tracks are aligned.
+
+    Loads up to max_search_s + 60 s from each file, applies a 300–3400 Hz bandpass
+    filter to isolate voice, then uses FFT-based full cross-correlation to find the
+    best alignment point and its direction.
     """
     print("  Detecting sync via cross-correlation...")
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -124,9 +128,9 @@ def find_sync_offset(speaker_path: Path, slides_path: Path, max_search_s: int = 
         spk_wav = tmp / "spk.wav"
         sld_wav = tmp / "sld.wav"
 
-        ffmpeg("-i", speaker_path, "-ac", "1", "-ar", "16000", "-vn", "-t", "60", spk_wav)
-        ffmpeg("-i", slides_path, "-ac", "1", "-ar", "16000", "-vn",
-               "-t", str(max_search_s + 60), sld_wav)
+        load_s = max_search_s + 60
+        ffmpeg("-i", speaker_path, "-ac", "1", "-ar", "16000", "-vn", "-t", str(load_s), spk_wav)
+        ffmpeg("-i", slides_path,  "-ac", "1", "-ar", "16000", "-vn", "-t", str(load_s), sld_wav)
 
         rate, spk_data = wavfile.read(spk_wav)
         _,    sld_data = wavfile.read(sld_wav)
@@ -137,11 +141,22 @@ def find_sync_offset(speaker_path: Path, slides_path: Path, max_search_s: int = 
             b, a = butter(4, [300 / (rate / 2), 3400 / (rate / 2)], btype="band")
             return filtfilt(b, a, mono)
 
-        sld_filtered = bandpass_voice(sld_data)[:int(max_search_s * rate) + len(spk_data)]
-        corr   = correlate(sld_filtered, bandpass_voice(spk_data), mode="valid")
-        offset = int(np.argmax(corr)) / rate
+        spk_f = bandpass_voice(spk_data)
+        sld_f = bandpass_voice(sld_data)
 
-    print(f"  Slides offset: {offset:.2f}s")
+        # Full cross-correlation gives signed lag:
+        #   lag > 0 → slides leads speaker → trim from slides start
+        #   lag < 0 → speaker leads slides → pad slides start
+        corr   = correlate(sld_f, spk_f, mode="full")
+        center = len(spk_f) - 1
+        sr     = int(max_search_s * rate)
+        lo     = max(0, center - sr)
+        hi     = min(len(corr), center + sr + 1)
+        peak   = lo + int(np.argmax(corr[lo:hi]))
+        offset = (peak - center) / rate
+
+    direction = "trim slides" if offset >= 0 else "pad slides start"
+    print(f"  Sync offset: {offset:+.2f}s ({direction})")
     return offset
 
 
@@ -194,6 +209,39 @@ def detect_crop(slides_path: Path, offset: float = 0.0, sample_s: int = 60) -> C
 
 
 # ── Slides padding ─────────────────────────────────────────────────────────────
+
+def pad_slides_start(slides_path: Path, output_path: Path, duration: float) -> Path:
+    """Prepend `duration` seconds of the frozen first frame to slides.
+
+    Used when the speaker recording starts before the slides recording begins.
+    Returns slides_path unchanged if duration is negligible.
+    """
+    if duration <= 0:
+        return slides_path
+
+    print(f"  Padding slides start with {duration:.1f}s of frozen first frame...")
+    tmp         = output_path.parent
+    first_frame = tmp / "first_frame.png"
+    frozen      = tmp / "frozen_start.mp4"
+    concat_txt  = tmp / "slides_start_concat.txt"
+
+    ffmpeg("-i", slides_path, "-vframes", "1", "-q:v", "2", first_frame)
+    ffmpeg(
+        "-loop", "1", "-framerate", str(probe_fps(slides_path)),
+        "-i", first_frame,
+        "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+        "-t", str(duration + 0.1),
+        "-c:v", "libx264", "-crf", "18", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "64k",
+        frozen,
+    )
+    concat_txt.write_text(
+        f"file '{frozen.resolve()}'\n"
+        f"file '{slides_path.resolve()}'\n"
+    )
+    ffmpeg("-f", "concat", "-safe", "0", "-i", concat_txt, "-c", "copy", output_path)
+    return output_path
+
 
 def pad_slides(slides_path: Path, output_path: Path, target_duration: float) -> Path:
     """Extend slides with a frozen last frame to reach target_duration.
@@ -460,7 +508,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sync = p.add_argument_group("sync")
     sync.add_argument("--offset", type=float, default=None, metavar="S",
-                      help="Seconds to skip from slides start; omit to auto-detect")
+                      help="Signed seconds to align slides to speaker: positive trims slides "
+                           "start (slides has a preamble), negative pads slides start with a "
+                           "frozen first frame (speaker started before slides recording began); "
+                           "omit to auto-detect")
 
     layout = p.add_argument_group("layout")
     layout.add_argument("--slides-pct", type=float, default=0.72, metavar="F",
@@ -556,11 +607,13 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="merger_") as tmp_dir:
         tmp = Path(tmp_dir)
 
-        # Step 1: trim slides to remove sponsor intro
+        # Step 1: align slides to speaker
         if offset >= 0.1:
             print(f"  Trimming {offset:.2f}s from slides start...")
             slides_trimmed = tmp / "trimmed.mp4"
             ffmpeg("-ss", offset, "-i", slides_path, "-c", "copy", slides_trimmed)
+        elif offset <= -0.1:
+            slides_trimmed = pad_slides_start(slides_path, tmp / "start_padded.mp4", -offset)
         else:
             slides_trimmed = slides_path
 

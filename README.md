@@ -16,6 +16,7 @@ Merges two conference recordings — slides and speaker — into a single synchr
 - Trims the slides width to exclude participant thumbnails on the right (`--slides-pct`)
 - Auto-syncs slides to the speaker using audio cross-correlation (trims sponsor intros automatically)
 - Uses the speaker video as the master timeline — output starts and ends with the speaker
+- Handles both sync directions: trims slides start when slides has a preamble, or pads slides start with a frozen first frame when the speaker started recording before the slides
 - Freezes the last slide frame if slides end before the speaker finishes
 - Optionally overlays both panels on a background image with a visible margin border
 - Optionally auto-detects and removes black borders from the slides (`--slides-autocrop`)
@@ -55,7 +56,7 @@ python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 \
 
 | Option | Default | Description |
 |---|---|---|
-| `--offset` | auto | Seconds to trim from the slides start |
+| `--offset` | auto | Signed seconds to align slides to speaker: positive trims slides start (slides has a preamble), negative pads slides start with a frozen first frame (speaker started before slides recording began) |
 | `--slides-pct` | `0.72` | Fraction of slides width that contains slides (excludes thumbnails) |
 | `--width` | `1920` | Output video width in pixels |
 | `--height` | `1080` | Output video height in pixels |
