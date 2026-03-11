@@ -74,6 +74,71 @@ python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 \
 
 ---
 
+### `video_merger_multi.py` — Multi-Speaker Conference Video Merger
+
+Like `video_merger.py` but accepts multiple speaker videos. The **slides** video is the master timeline; each speaker video is synchronized individually. Portions of the slides with no speaker coverage are shown as black.
+
+**What it does:**
+
+- Places slides (75%) and speaker (25%) side by side in a 1920x1080 output
+- **Slides is the master** — output duration equals slides duration
+- Accepts one or more speaker videos, each independently synchronized to slides
+- Black panel where no speaker video covers a slides segment
+- Auto-detects sync offset for each speaker via audio cross-correlation (or use `--offsets`)
+- Handles both sync directions: speaker starts before or after slides recording begins
+- Overlapping speaker segments are resolved by clipping the earlier one
+- All layout, crop, background, and intro options from `video_merger.py` are supported
+
+**Usage:**
+
+```bash
+# Single speaker, auto-detect sync
+python3 video_merger_multi.py slides.mp4 spk1.mp4 -o output.mp4
+
+# Multiple speakers, auto-detect sync for each
+python3 video_merger_multi.py slides.mp4 spk1.mp4 spk2.mp4 -o output.mp4
+
+# Manual offsets (seconds into slides where each speaker starts)
+python3 video_merger_multi.py slides.mp4 spk1.mp4 spk2.mp4 -o output.mp4 \
+    --offsets 0 3600
+
+# Full example
+python3 video_merger_multi.py slides.mp4 spk1.mp4 spk2.mp4 -o output.mp4 \
+    --background background.jpg \
+    --slides-autocrop \
+    --intro-community logo_ruby.png \
+    --intro-sponsor   logo_sponsor.png \
+    --intro-music     music.mp3
+```
+
+**Offset convention (`--offsets`):**
+
+| Value | Meaning |
+|---|---|
+| `300` | Speaker starts 5 minutes into the slides timeline |
+| `-60` | Speaker has a 60s preamble before slides recording began |
+| _(omitted)_ | Auto-detect via cross-correlation |
+
+**Options:**
+
+| Option | Default | Description |
+|---|---|---|
+| `-o / --output` | required | Output file path |
+| `--offsets` | auto | Signed seconds per speaker (see above); provide fewer than N speakers to auto-detect the rest |
+| `--slides-pct` | `0.72` | Fraction of slides width that contains slides |
+| `--width` | `1920` | Output width in pixels |
+| `--height` | `1080` | Output height in pixels |
+| `--background` | — | Background image behind both panels |
+| `--slides-autocrop` | off | Auto-detect and remove black borders from slides |
+| `--slides-crop-top/bottom/left/right` | `0` | Manual crop pixels |
+| `--intro-community` | — | Community logo PNG |
+| `--intro-sponsor` | — | Sponsor logo PNG |
+| `--intro-music` | — | Intro music MP3 |
+| `--intro-community-duration` | `2` | Community screen duration (s) |
+| `--intro-sponsor-duration` | `2` | Sponsor screen duration (s) |
+
+---
+
 ### `add_intro.py` — Video Intro Prepender
 
 Prepends a branded intro sequence (community logo, sponsor logo, optional music) to any video, with smooth fade transitions.
