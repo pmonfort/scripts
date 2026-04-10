@@ -72,6 +72,8 @@ python3 video_merger.py slides.mp4 speaker.mp4 output.mp4 \
 | `--intro-community-duration` | `2` | Seconds to show the community screen |
 | `--intro-sponsor-duration` | `2` | Seconds to show the sponsor screen |
 
+**Dark background alternative:** `video_merger_alt_dark_background.py` — identical to `video_merger.py` but uses a stricter crop-detection threshold (`cropdetect limit=10` instead of `32`). When slides have a dark background, the default threshold may mistake dark content for black borders and crop too aggressively; the alternative avoids this. Usage is the same.
+
 ---
 
 ### `video_merger_multi.py` — Multi-Speaker Conference Video Merger
@@ -136,6 +138,8 @@ python3 video_merger_multi.py slides.mp4 spk1.mp4 spk2.mp4 -o output.mp4 \
 | `--intro-music` | — | Intro music MP3 |
 | `--intro-community-duration` | `2` | Community screen duration (s) |
 | `--intro-sponsor-duration` | `2` | Sponsor screen duration (s) |
+
+**Dark background alternative:** `video_merger_multi_alt_dark_background.py` — identical to `video_merger_multi.py` but uses a stricter crop-detection threshold (`cropdetect limit=10` instead of `32`). Recommended when slides have a dark background to prevent dark content from being mistakenly cropped. Usage is the same.
 
 ---
 
