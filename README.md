@@ -143,6 +143,68 @@ python3 video_merger_multi.py slides.mp4 spk1.mp4 spk2.mp4 -o output.mp4 \
 
 ---
 
+### `transcribe.py` — Speaker-Diarized Video Transcription
+
+Extracts a transcription from a video file, identifying different speakers and outputting a formatted conversation.
+
+**What it does:**
+
+- Extracts audio from any video format (mp4, mov, avi, mkv, etc.)
+- Transcribes speech using Whisper (local, offline)
+- Identifies individual speakers via pyannote speaker diarization
+- Merges transcription + diarization into a clean conversation format
+- Outputs a `.txt` file with `Speaker N: text` lines
+
+**Requirements:**
+
+```bash
+brew install ffmpeg
+pip3 install faster-whisper pyannote.audio torch torchaudio
+```
+
+A free HuggingFace token is required for the diarization models. Create one at https://huggingface.co/settings/tokens and accept the terms at:
+- https://huggingface.co/pyannote/segmentation-3.0
+- https://huggingface.co/pyannote/speaker-diarization-3.1
+
+**Usage:**
+
+```bash
+# Basic (auto-detect language, output to <video>_transcription.txt)
+HF_TOKEN=hf_xxx python3 transcribe.py video.mp4
+
+# Specify language and output path
+python3 transcribe.py video.mp4 -o transcription.txt --language es --hf-token hf_xxx
+
+# Known number of speakers (improves diarization accuracy)
+python3 transcribe.py video.mp4 --num-speakers 2 --hf-token hf_xxx
+
+# Faster with smaller model
+python3 transcribe.py video.mp4 --model small --hf-token hf_xxx
+```
+
+**Options:**
+
+| Option | Default | Description |
+|---|---|---|
+| `-o / --output` | `<video>_transcription.txt` | Output file path |
+| `--language` | auto-detect | Language code (`en`, `es`, `fr`, etc.) |
+| `--model` | `large-v3` | Whisper model: `tiny`, `base`, `small`, `medium`, `large-v3` |
+| `--num-speakers` | auto | Number of speakers (helps diarization when known) |
+| `--device` | `cpu` | Torch device: `cpu`, `cuda`, `mps` |
+| `--compute-type` | `int8` | Whisper compute type: `int8`, `float16`, `float32` |
+| `--hf-token` | `$HF_TOKEN` | HuggingFace access token |
+
+**Output format:**
+
+```
+Speaker 1: Hello, how are you?
+Speaker 2: Good, thanks. Let me introduce the topic.
+Speaker 1: Sure, go ahead.
+Speaker 3: I have a question first.
+```
+
+---
+
 ### `add_intro.py` — Video Intro Prepender
 
 Prepends a branded intro sequence (community logo, sponsor logo, optional music) to any video, with smooth fade transitions.
